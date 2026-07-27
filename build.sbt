@@ -1,6 +1,6 @@
 name         := "sbt-apache-sonatype"
 sbtPlugin    := true
-organization := "org.mdedetrich"
+organization := "com.github.pjfanning"
 
 // compile settings
 scalacOptions ++= List(
@@ -36,12 +36,13 @@ ThisBuild / pomIncludeRepository   := (_ => false)
 ThisBuild / publishMavenStyle      := true
 ThisBuild / licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0.html"))
 ThisBuild / developers := List(
-  Developer("mdedetrich", "Matthew de Detrich", "mdedetrich@gmail.com", url("https://github.com/mdedetrich"))
+  Developer("mdedetrich", "Matthew de Detrich", "mdedetrich@gmail.com", url("https://github.com/mdedetrich")),
+  Developer(id = "pjfanning", name = "PJ Fanning", email = "", url = url("https://github.com/pjfanning"))
 )
-ThisBuild / homepage := Some(url("https://github.com/mdedetrich/sbt-apache-sonatype"))
+ThisBuild / homepage := Some(url("https://github.com/pjfanning/sbt-apache-sonatype"))
 
 ThisBuild / scmInfo := Some(
-  ScmInfo(url("https://github.com/mdedetrich/sbt-apache-sonatype"), "git@github.com:mdedetrich/sbt-apache-sonatype.git")
+  ScmInfo(url("https://github.com/pjfanning/sbt-apache-sonatype"), "git@github.com:pjfanning/sbt-apache-sonatype.git")
 )
 
 ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
