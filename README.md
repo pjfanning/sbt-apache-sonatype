@@ -21,7 +21,7 @@ after sbt-sonatype is loaded, the only steps that are strictly necessary is to a
 i.e.
 
 ```sbt
-addSbtPlugin("org.mdedetrich" % "sbt-apache-sonatype" % "<version>")
+addSbtPlugin("com.github.pjfanning" % "sbt-apache-sonatype" % "<version>")
 ```
 
 And then set the only mandatory key which is `apacheSonatypeProjectProfile`, see [below](#notable-sbt-plugin-keys).
