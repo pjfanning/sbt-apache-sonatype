@@ -12,7 +12,8 @@ scalacOptions ++= List(
 )
 
 scalacOptions ++= {
-  if (insideCI.value) {
+  val isScala2 = scalaBinaryVersion.value == "2.12"
+  if (isScala2 && insideCI.value) {
     val log = sLog.value
     log.info("Running in CI, enabling Scala2 optimizer")
     Seq(
@@ -22,12 +23,21 @@ scalacOptions ++= {
   } else Nil
 }
 
-lazy val scala212 = "2.12.21"
-ThisBuild / crossScalaVersions := Seq(scala212)
+val scala212 = "2.12.21"
+val scala3   = "3.8.4"
+ThisBuild / crossScalaVersions := Seq(scala212, scala3)
 ThisBuild / scalaVersion       := scala212
+
+(pluginCrossBuild / sbtVersion) := {
+  scalaBinaryVersion.value match {
+    case "2.12" => "1.12.14"
+    case _      => "2.0.3"
+  }
+}
 
 addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.12.2")
 addSbtPlugin("com.github.sbt" % "sbt-pgp"      % "2.3.1")
+addSbtPlugin("com.github.sbt" % "sbt2-compat"  % "0.2.0")
 enablePlugins(SbtPlugin)
 
 ThisBuild / versionScheme          := Some("early-semver")
@@ -85,17 +95,18 @@ scriptedLaunchOpts := {
 
 scriptedBufferLog := false
 
-// scalafix specific settings
+// scalafix specific settings (Scala 2.12 only — scalafix does not support Scala 3 plugin sources)
 inThisBuild(
   List(
-    semanticdbEnabled := true,
+    semanticdbEnabled := (scalaBinaryVersion.value == "2.12"),
     semanticdbVersion := scalafixSemanticdb.revision,
-    scalacOptions ++= Seq(
-      "-Ywarn-unused"
-    )
+    scalacOptions ++= {
+      if (scalaBinaryVersion.value == "2.12") Seq("-Ywarn-unused")
+      else Nil
+    }
   )
 )
 
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "3.2.19" % Test
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test
 )
