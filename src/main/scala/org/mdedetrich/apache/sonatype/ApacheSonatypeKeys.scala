@@ -10,6 +10,14 @@ trait ApacheSonatypeKeys {
     settingKey[String](
       "The projects name which becomes the ending part of the sonatype profile, typically this is the Apache project name"
     )
+  lazy val apacheSonatypeGroupId: SettingKey[String] =
+    settingKey[String](
+      "The Maven groupId (sbt organization) used for published artifacts, defaults to org.apache.<apacheSonatypeProjectProfile>"
+    )
+  lazy val apacheSonatypeUseCentralPortal: SettingKey[Boolean] =
+    settingKey[Boolean](
+      "Whether to publish to the Sonatype Central Portal (central.sonatype.com) using sbt's built-in support instead of the Apache Nexus repository"
+    )
   lazy val apacheSonatypeCredentialsProvider: SettingKey[CredentialProvider] =
     settingKey[CredentialProvider]("How to provide credentials to Apaches Nexus repository")
   lazy val apacheSonatypeCredentialsLogLevel: SettingKey[Level.Value] =

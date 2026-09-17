@@ -1,0 +1,9 @@
+> checkOrganization
+> checkSonatypeCredentialHost
+> checkCredentials
+> checkSnapshotPublishTo
+> set ThisBuild / version := "1.0.0"
+> checkReleasePublishTo
+# releases are staged locally so that they can later be uploaded with sonaUpload/sonaRelease
+> publish
+$ exists target/sona-staging/org/apache/project/some-name_2.13/1.0.0/some-name_2.13-1.0.0.pom

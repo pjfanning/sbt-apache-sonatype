@@ -27,7 +27,7 @@ ThisBuild / crossScalaVersions := Seq(scala212)
 ThisBuild / scalaVersion       := scala212
 
 addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.12.2")
-addSbtPlugin("com.github.sbt" % "sbt-pgp"      % "2.3.1")
+addSbtPlugin("com.github.sbt" % "sbt-pgp"      % "2.3.2")
 enablePlugins(SbtPlugin)
 
 ThisBuild / versionScheme          := Some("early-semver")
@@ -74,7 +74,7 @@ ThisBuild / githubWorkflowBuildPreamble := Seq(
   WorkflowStep.Sbt(List("scalafixAll --check"), name = Some("Linter: Scalafix checks"))
 )
 
-ThisBuild / githubWorkflowOSes := Seq("ubuntu-latest", "macos-12", "windows-latest")
+ThisBuild / githubWorkflowOSes := Seq("ubuntu-latest", "macos-15-intel", "windows-latest")
 
 scriptedLaunchOpts += ("-Dplugin.version=" + version.value)
 
@@ -97,5 +97,5 @@ inThisBuild(
 )
 
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "3.2.19" % Test
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test
 )
