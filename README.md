@@ -12,7 +12,8 @@ set.
 Once this is done you can then publish your projects Maven artifacts into Apache's Nexus by using
 `publish`/`publishSigned` as is idiomatically done in sbt projects.
 
-This plugin requires at least sbt version 1.10.2.
+This plugin requires at least sbt version 1.10.2 (or sbt 1.11.0 when publishing to the
+[Sonatype Central Portal](#publishing-to-the-sonatype-central-portal)).
 
 ## Usage
 
@@ -24,7 +25,8 @@ i.e.
 addSbtPlugin("com.github.pjfanning" % "sbt-apache-sonatype" % "<version>")
 ```
 
-And then set the only mandatory key which is `apacheSonatypeProjectProfile`, see [below](#notable-sbt-plugin-keys).
+And then set the only mandatory key which is `apacheSonatypeProjectProfile` (or alternatively `apacheSonatypeGroupId`),
+see [below](#notable-sbt-plugin-keys).
 
 ### Enabling project to publish to Apache's Maven Nexus Repository
 
@@ -46,8 +48,15 @@ if you want to set `apacheSonatypeDisclaimerFile` to point to a `DISCLAIMER` fil
 `ThisBuild / apacheSonatypeDisclaimerFile := Some((LocalRootProject / baseDirectory).value / "DISCLAIMER")`.
 
 * `apacheSonatypeProjectProfile`: This is meant to be the name of your Apache project (for example if your project is
-  named `myproject` then the Sonatype profile name with be `org.apache.myproject`). This is the only setting that has to
-  be set otherwise your sbt build will not load correctly.
+  named `myproject` then the Sonatype profile name with be `org.apache.myproject`). Either this setting or
+  `apacheSonatypeGroupId` has to be set otherwise your sbt build will not load correctly.
+* `apacheSonatypeGroupId`: The Maven groupId (i.e. the sbt `organization`) of the published artifacts. Defaults to
+  `org.apache.<apacheSonatypeProjectProfile>` which is what the vast majority of Apache projects want, however it can be
+  overridden if your groupId differs from the Sonatype profile name (e.g. `org.apache.myproject.extras`). If
+  `apacheSonatypeGroupId` is set without `apacheSonatypeProjectProfile` then the Sonatype profile name also falls back to
+  the groupId.
+* `apacheSonatypeUseCentralPortal`: Whether to publish to the Sonatype Central Portal instead of Apache's Nexus
+  repository, defaults to `false`. See [below](#publishing-to-the-sonatype-central-portal).
 * `apacheSonatypeLicenseFile`: A mandatory setting defaulting to a `LICENSE` file in your project's base directory to
   be included in artifacts. If for some reason the `LICENSE` is not in your projects base directory you need to override
   this. See https://infra.apache.org/apply-license.html#new.
@@ -80,6 +89,30 @@ These are keys specific to Apache projects that use GitHub along with GitHub Act
 Note that since this plugin is resolving the credentials via the use of environment variables, a
 [release manager](https://infra.apache.org/release-publishing.html#releasemanager) can also export the same environment
 variables when doing a main release (which is almost always done on a local machine and not CI)
+
+## Publishing to the Sonatype Central Portal
+
+By default the plugin publishes to Apache's Nexus repository (`repository.apache.org`) through sbt-sonatype, i.e.
+`publishSigned` followed by `sonatypeBundleRelease`. If your project instead publishes to the
+[Sonatype Central Portal](https://central.sonatype.com/) you can opt in with
+
+```sbt
+ThisBuild / apacheSonatypeUseCentralPortal := true
+```
+
+This uses sbt's built-in Central Portal support (available since sbt 1.11.0, the same mechanism used by
+[sbt-ci-release](https://github.com/sbt/sbt-ci-release)) and configures the following:
+
+* `publishTo` points to sbt's `localStaging` resolver for releases, so after `publishSigned` you run the built-in
+  `sonaUpload` (upload only, release manually in the portal) or `sonaRelease` (upload and release) command. `-SNAPSHOT`
+  versions are published directly to `https://central.sonatype.com/repository/maven-snapshots/`.
+* Credentials are registered against `central.sonatype.com` (this also sets sbt-sonatype's `sonatypeCredentialHost`).
+  They are resolved with the same `apacheSonatypeCredentialsProvider`, i.e. by default from the `NEXUS_USER`/`NEXUS_PW`
+  environment variables, which should contain a Central Portal user token. If these are absent sbt itself falls back to
+  the `SONATYPE_USERNAME`/`SONATYPE_PASSWORD` environment variables.
+
+All other settings (groupId, organization name, license/notice files, pom name processing etc.) apply in exactly the
+same way as when publishing to Apache's Nexus repository.
 
 ## Utility functions
 

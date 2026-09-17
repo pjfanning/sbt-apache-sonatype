@@ -32,6 +32,22 @@ object ApacheSonatypePlugin extends AutoPlugin {
     toFile
   }
 
+  /** The host of the Sonatype Central Portal, used when [[autoImport.apacheSonatypeUseCentralPortal]] is enabled */
+  val centralPortalHost: String = "central.sonatype.com"
+
+  /** The snapshot repository of the Sonatype Central Portal, used for `-SNAPSHOT` versions when
+    * [[autoImport.apacheSonatypeUseCentralPortal]] is enabled
+    */
+  val centralSnapshotsRepository: MavenRepository =
+    "central-snapshots" at s"https://$centralPortalHost/repository/maven-snapshots/"
+
+  // Copied from sbt.Keys (available since sbt 1.11.0) so that the plugin still loads on older sbt versions where the
+  // Central Portal is not needed. sbt keys are identified by name and type so this resolves to sbt's own setting.
+  private val localStaging: SettingKey[Option[Resolver]] =
+    settingKey[Option[Resolver]]("Local staging resolver for Sonatype publishing")
+
+  final private[sonatype] def apacheGroupId(projectProfile: String): String = s"org.apache.$projectProfile"
+
   final private[sonatype] def processArtifactName(artifactId: String) = {
     val prettified = artifactId
       .replaceAll("-", " ")
@@ -44,6 +60,7 @@ object ApacheSonatypePlugin extends AutoPlugin {
 
   private[sonatype] lazy val apacheSonatypeGlobalSettings: Seq[Setting[_]] = Seq(
     apacheSonatypeBaseRepo                  := "repository.apache.org",
+    apacheSonatypeUseCentralPortal          := false,
     apacheSonatypeCredentialsUserEnvVar     := "NEXUS_USER",
     apacheSonatypeCredentialsPasswordEnvVar := "NEXUS_PW",
     apacheSonatypeCredentialsHost           := "Sonatype Nexus Repository Manager",
@@ -58,9 +75,27 @@ object ApacheSonatypePlugin extends AutoPlugin {
     apacheSonatypeArtifactNameProcessor := processArtifactName
   )
 
+  /** The host that artifacts are published to and that credentials are registered against, i.e. either the Apache Nexus
+    * repository or the Sonatype Central Portal
+    */
+  private[sonatype] lazy val publishHost: Def.Initialize[String] = Def.setting {
+    if (apacheSonatypeUseCentralPortal.value) centralPortalHost else apacheSonatypeBaseRepo.value
+  }
+
+  /** The Apache Nexus staging profile, derived from the project profile if set and otherwise the groupId */
+  private[sonatype] lazy val apacheSonatypeProfileName: Def.Initialize[String] = Def.setting {
+    apacheSonatypeProjectProfile.?.value.map(apacheGroupId).getOrElse(apacheSonatypeGroupId.value)
+  }
+
   private[sonatype] lazy val sbtSonatypeBuildSettings: Seq[Setting[_]] = Seq(
-    sonatypeCredentialHost := apacheSonatypeBaseRepo.value,
-    sonatypeProfileName    := s"org.apache.${apacheSonatypeProjectProfile.value}"
+    sonatypeCredentialHost := publishHost.value,
+    sonatypeProfileName    := apacheSonatypeProfileName.value
+  )
+
+  // sbt-sonatype defines sonatypeProfileName := organization.value in its projectSettings which would otherwise
+  // shadow the build level setting whenever apacheSonatypeGroupId differs from the Apache Nexus staging profile
+  private[sonatype] lazy val sbtSonatypeProjectSettings: Seq[Setting[_]] = Seq(
+    sonatypeProfileName := apacheSonatypeProfileName.value
   )
 
   private[sonatype] lazy val baseDir = LocalRootProject / baseDirectory
@@ -90,15 +125,18 @@ object ApacheSonatypePlugin extends AutoPlugin {
     credentials ++= {
       val log   = sLog.value
       val level = apacheSonatypeCredentialsLogLevel.value
+      val realm = apacheSonatypeCredentialsHost.value
+      val host  = publishHost.value
       apacheSonatypeCredentialsProvider.value.credentials(log, level).map { apacheCredentials =>
-        Credentials(apacheSonatypeCredentialsHost.value,
-                    apacheSonatypeBaseRepo.value,
-                    apacheCredentials.nexusUser,
-                    apacheCredentials.nexusPassword
-        )
+        Credentials(realm, host, apacheCredentials.nexusUser, apacheCredentials.nexusPassword)
       }
     },
-    organization         := s"org.apache.${apacheSonatypeProjectProfile.value}",
+    apacheSonatypeGroupId := apacheSonatypeProjectProfile.?.value.map(apacheGroupId).getOrElse {
+      sys.error(
+        "sbt-apache-sonatype: either apacheSonatypeProjectProfile or apacheSonatypeGroupId needs to be set, i.e. ThisBuild / apacheSonatypeProjectProfile := \"myproject\""
+      )
+    },
+    organization         := apacheSonatypeGroupId.value,
     organizationName     := apacheSonatypeOrganizationName.value,
     organizationHomepage := Some(apacheSonatypeOrganizationHomePage.value),
     pomPostProcess       := pomPostProcess.value andThen processNameInPom(apacheSonatypeArtifactNameProcessor.value)
@@ -120,7 +158,19 @@ object ApacheSonatypePlugin extends AutoPlugin {
     apacheSonatypeLicenseFile    := baseDir.value / "LICENSE",
     apacheSonatypeNoticeFile     := baseDir.value / "NOTICE",
     apacheSonatypeDisclaimerFile := None,
-    publishTo                    := sonatypePublishToBundle.value
+    publishTo := {
+      if (apacheSonatypeUseCentralPortal.value) {
+        // Mirrors what sbt itself (and sbt-ci-release) do for the Central Portal: snapshots go directly to the
+        // central snapshots repository while releases are staged locally for `sonaUpload`/`sonaRelease`.
+        if (version.value.endsWith("-SNAPSHOT")) Some(centralSnapshotsRepository)
+        else
+          localStaging.?.value.getOrElse(
+            sys.error(
+              "sbt-apache-sonatype: publishing to the Sonatype Central Portal (apacheSonatypeUseCentralPortal := true) requires sbt 1.11.0 or later"
+            )
+          )
+      } else sonatypePublishToBundle.value
+    }
   ) ++ inConfig(Compile)(
     Seq(
       resourceGenerators += {
@@ -149,7 +199,7 @@ object ApacheSonatypePlugin extends AutoPlugin {
   override lazy val buildSettings: Seq[Setting[_]] =
     sbtSonatypeBuildSettings ++ sbtMavenBuildSettings
 
-  override lazy val projectSettings: Seq[Setting[_]] = sbtMavenProjectSettings
+  override lazy val projectSettings: Seq[Setting[_]] = sbtSonatypeProjectSettings ++ sbtMavenProjectSettings
 
   override lazy val trigger = allRequirements
 
