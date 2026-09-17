@@ -28,7 +28,9 @@ TaskKey[Unit]("check-sonatype-credential-host") := {
 
 TaskKey[Unit]("check-credentials") := {
   val direct = credentials.value.collect { case d: DirectCredentials => d }
-  if (!direct.exists(d => d.host == "central.sonatype.com" && d.userName == "central-user" && d.passwd == "central-token"))
+  if (
+    !direct.exists(d => d.host == "central.sonatype.com" && d.userName == "central-user" && d.passwd == "central-token")
+  )
     sys.error(s"expected credentials for central.sonatype.com, instead got ${direct.map(d => d.host -> d.userName)}")
   if (direct.exists(_.host == "repository.apache.org"))
     sys.error("credentials for repository.apache.org should not be registered when using the Central Portal")
