@@ -46,11 +46,12 @@ TaskKey[Unit]("check-snapshot-publish-to") := {
 }
 
 TaskKey[Unit]("check-release-publish-to") := {
-  val staging = (ThisBuild / baseDirectory).value / "target" / "sona-staging"
+  // resolver patterns always use forward slashes, even on Windows
+  val staging = ((ThisBuild / baseDirectory).value / "target" / "sona-staging").getAbsolutePath.replace('\\', '/')
   publishTo.value match {
     case Some(resolver: FileRepository) if resolver.name == "local-staging" =>
       val root = resolver.patterns.artifactPatterns.head
-      if (!root.startsWith(staging.getAbsolutePath))
+      if (!root.startsWith(staging))
         sys.error(s"expected publishTo to stage under $staging, instead got $root")
     case other => sys.error(s"expected publishTo to be sbt's local-staging resolver, instead got $other")
   }
